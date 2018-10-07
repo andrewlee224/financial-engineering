@@ -3,6 +3,9 @@ import pytest
 import binomial
 
 
+DIGITS_PRECISION = 9
+
+
 @pytest.fixture()
 def binomial_model():
     T = .25
@@ -20,14 +23,14 @@ def binomial_model():
 def test_american_call_k110(binomial_model):
     price, early_exercise = binomial_model.american_option(k=110, call=True)
 
-    assert price == 2.604077132966553
+    assert round(price, DIGITS_PRECISION) == 2.604077133
     assert early_exercise == 15
 
 
 def test_american_put_k110(binomial_model):
     price, early_exercise = binomial_model.american_option(k=110, call=False)
 
-    assert price == 12.359784797284911
+    assert round(price, DIGITS_PRECISION) == 12.359784797
     assert early_exercise == 5
 
 
