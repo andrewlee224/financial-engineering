@@ -27,6 +27,12 @@ class Node(object):
         self.up = None
         self.down = None
 
+    def __getattr__(self, item):
+        if item in self.values:
+            return self.values[item]
+        else:
+            raise AttributeError
+
 
 class Lattice(object):
     def __init__(self):
@@ -45,17 +51,17 @@ class BinomialModel(object):
         self.fill_lattice()
 
     def fill_lattice(self):
-        self.lattice.layers = [[Node() for i in range(i + 1)] for i in
+        self.lattice.layers = [[Node() for _ in range(i + 1)] for i in
                                range(self.n + 1)]
         self.lattice.layers[0][0].value = self.S0
         self.lattice.layers[0][0].values['stock'] = self.S0
 
         for layer in range(self.n):
-            for node_idx, node in enumerate(self.lattice.layers[layer]):
-                next_layer = self.lattice.layers[layer + 1]
+            next_layer = self.lattice.layers[layer + 1]
 
-                up_node = next_layer[node_idx]
-                down_node = next_layer[node_idx + 1]
+            for node_idx, node in enumerate(self.lattice.layers[layer]):
+                up_node = next_layer[node_idx + 1]
+                down_node = next_layer[node_idx]
                 node.up = up_node
                 node.down = down_node
 
@@ -68,22 +74,16 @@ class BinomialModel(object):
                 down_node.parent_down = node
 
     def fill_futures_lattice(self):
-        def get_exercise_value(node_value, k):
-            if call:
-                return max(node.value - k, 0)
-            else:
-                return max(k - node.value, 0)
 
         for node in self.lattice.layers[-1]:
-            node.values['futures'] = node.value
+            node.futures = node.value
 
         for layer_idx in range(self.n - 1, -1, -1):
             layer = self.lattice.layers[layer_idx]
             for node in layer:
-                node.values['futures'] = self.q * node.up.values['futures'] + (
-                                                                              1 - self.q) * \
-                                                                              node.down.values[
-                                                                                  'futures']
+                node.values['futures'] = (
+                    self.q * node.up.futures +
+                    (1 - self.q) * node.down.futures)
 
     def american_option(self, k, call=True, futures=None):
         def get_exercise_value(node_value, k):
@@ -101,8 +101,8 @@ class BinomialModel(object):
             last_idx = self.n
 
         for node in self.lattice.layers[last_idx]:
-            node.values['option'] = get_exercise_value(node.values[base_value],
-                                                       k)
+            node.values['option'] = get_exercise_value(
+                node.values[base_value], k)
 
         early_exercise = last_idx
         for layer_idx in range(last_idx - 1, -1, -1):
@@ -111,11 +111,17 @@ class BinomialModel(object):
                 exercise_value = get_exercise_value(node.values[base_value], k)
                 continue_value = (
                     (1 / self.r) * (
-                    self.q * node.up.values['option'] + (1 - self.q) *
-                    node.down.values['option'])
+                        self.q * node.up.option + (1 - self.q) *
+                        node.down.option)
                 )
                 if exercise_value > continue_value:
                     early_exercise = min(early_exercise, layer_idx)
                 node.values['option'] = max(exercise_value, continue_value)
 
         return self.lattice.layers[0][0].values['option'], early_exercise
+
+    def american_call(self, k, futures=None):
+        return self.american_option(k, call=True, futures=futures)
+
+    def american_put(self, k, futures=None):
+        return self.american_option(k, call=False, futures=futures)
