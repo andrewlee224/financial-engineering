@@ -1,6 +1,8 @@
 import pytest
 
 import binomial
+import npv
+import mortgage
 
 
 DIGITS_PRECISION = 9
@@ -32,6 +34,19 @@ def test_american_put_k110(binomial_model):
 
     assert round(price, DIGITS_PRECISION) == 12.359784797
     assert early_exercise == 5
+
+
+def test_discount():
+    assert npv.discount(0.05, 2) == pytest.approx(0.90703)
+
+
+def test_npv():
+    assert npv.npv(10000, 0.025, 10) == pytest.approx(7811.98401)
+
+
+def test_mortgage_payment():
+    assert mortgage.payment(
+        150000, 0.04 / 12, 5 * 12) == pytest.approx(2762.4783)
 
 
 if __name__ == '__main__':
